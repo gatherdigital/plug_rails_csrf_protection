@@ -36,6 +36,9 @@ defmodule PlugRailsCSRFProtection do
 
   ## Options
 
+    * `:token_param` - the name of the request parameter to be verified against
+    the session token. Equivalent to the `request_forgery_protection_token` option
+    found in Rails. Defaults to "_csrf_token".
     * `:with` - should be one of `:exception` or `:clear_session`. Defaults to
     `:exception`.
       * `:exception` -  for invalid requests, this plug will raise
@@ -121,15 +124,20 @@ defmodule PlugRailsCSRFProtection do
   @encoded_token_size 44
   @double_encoded_token_size 88
 
-  def init(opts), do: Keyword.get(opts, :with, :exception)
+  def init(opts) do
+    {
+      Keyword.get(opts, :token_param, "_csrf_token"),
+      Keyword.get(opts, :with, :exception)
+    }
+  end
 
-  def call(conn, mode) do
+  def call(conn, {token_param, mode}) do
     csrf_token = get_csrf_from_session(conn)
     Process.put(:plug_unmasked_csrf_token, csrf_token)
 
     conn =
       cond do
-        verified_request?(conn, csrf_token) ->
+        verified_request?(conn, csrf_token, token_param) ->
           conn
         mode == :clear_session ->
           conn |> configure_session(ignore: true) |> clear_session()
@@ -151,9 +159,9 @@ defmodule PlugRailsCSRFProtection do
     end
   end
 
-  defp verified_request?(conn, csrf_token) do
+  defp verified_request?(conn, csrf_token, token_param) do
     conn.method in @unprotected_methods
-      || valid_csrf_token?(csrf_token, conn.params["_csrf_token"])
+      || valid_csrf_token?(csrf_token, conn.params[token_param])
       || valid_csrf_token?(csrf_token, List.first(get_req_header(conn, "x-csrf-token")))
       || skip_csrf_protection?(conn)
   end
