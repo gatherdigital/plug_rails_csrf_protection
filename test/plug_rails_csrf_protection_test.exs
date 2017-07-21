@@ -113,6 +113,10 @@ defmodule PlugRailsCSRFProtectionTest do
            |> call_with_old_conn(old_conn, with: :clear_session)
            |> get_session("key") == nil
 
+    assert conn(:post, "/", %{authenticity_token: "foo"})
+           |> call_with_old_conn(old_conn, with: :clear_session, token_param: "authenticity_token")
+           |> get_session("key") == nil
+
     assert conn(:post, "/", %{})
            |> call_with_old_conn(old_conn, with: :clear_session)
            |> get_session("key") == nil
@@ -173,15 +177,27 @@ defmodule PlugRailsCSRFProtectionTest do
 
   test "protected requests with valid token in params are allowed" do
     old_conn = call(conn(:get, "/?token=get"))
-    params = %{_csrf_token: old_conn.resp_body}
+    token = old_conn.resp_body
 
-    conn = call_with_old_conn(conn(:post, "/", params), old_conn)
+    conn = call_with_old_conn(conn(:post, "/", %{_csrf_token: token}), old_conn)
     refute conn.halted
 
-    conn = call_with_old_conn(conn(:put, "/", params), old_conn)
+    conn = call_with_old_conn(conn(:put, "/", %{_csrf_token: token}), old_conn)
     refute conn.halted
 
-    conn = call_with_old_conn(conn(:patch, "/", params), old_conn)
+    conn = call_with_old_conn(conn(:patch, "/", %{_csrf_token: token}), old_conn)
+    refute conn.halted
+
+    conn = call_with_old_conn(conn(:post, "/", %{authenticity_token: token}),
+                              old_conn, token_param: "authenticity_token")
+    refute conn.halted
+
+    conn = call_with_old_conn(conn(:put, "/", %{authenticity_token: token}),
+                              old_conn, token_param: "authenticity_token")
+    refute conn.halted
+
+    conn = call_with_old_conn(conn(:patch, "/", %{authenticity_token: token}),
+                              old_conn, token_param: "authenticity_token")
     refute conn.halted
   end
 
