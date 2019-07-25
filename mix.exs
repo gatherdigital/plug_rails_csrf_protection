@@ -29,7 +29,6 @@ defmodule PlugRailsCSRFProtection.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [
-      {:cowboy,  "~> 1.0", optional: true},
       {:plug,    ">= 0.9.0"}
     ]
   end
